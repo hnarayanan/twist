@@ -6,7 +6,7 @@ __license__  = "GNU GPL Version 3 or any later version"
 
 from time import time
 from dolfin import info, error, Progress
-from dolfin import compile_subdomains, interpolate
+from dolfin import CompiledSubDomain, interpolate
 from dolfin import SubDomain, DirichletBC, Constant, Expression
 from dolfin.cpp import GenericFunction
 
@@ -75,7 +75,7 @@ def create_dirichlet_conditions(values, boundaries, function_space):
 
         # Case 0: boundary is a string
         if isinstance(boundary, str):
-            boundary = compile_subdomains(boundary)
+            boundary = CompiledSubDomain(boundary)
             bc = DirichletBC(function_space, value, boundary)
 
         # Case 1: boundary is a SubDomain

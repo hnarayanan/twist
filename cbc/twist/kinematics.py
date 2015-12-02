@@ -16,7 +16,7 @@ def InfinitesimalStrain(u):
 
 # Second order identity tensor
 def SecondOrderIdentity(u):
-    return variable(Identity(u.cell().d))
+    return variable(Identity(u.cell().geometric_dimension()))
 
 # Deformation gradient
 def DeformationGradient(u):
@@ -86,12 +86,12 @@ def IsochoricCauchyGreenInvariants(u):
 def PrincipalStretches(u):
     C = RightCauchyGreen(u)
     S = FunctionSpace(u.function_space().mesh(), "CG", 1)
-    if (u.cell().d == 2):
+    if (u.cell().geometric_dimension() == 2):
         D = sqrt(tr(C)*tr(C) - 4.0*det(C))
 	eig1 = sqrt(0.5*(tr(C) + D))
 	eig2 = sqrt(0.5*(tr(C) - D))
 	return [variable(eig1), variable(eig2)]
-    if (u.cell().d == 3):
+    if (u.cell().geometric_dimension() == 3):
 	c = (1.0/3.0)*tr(C)
 	D = C - c*SecondOrderIdentity(u)
 	q = (1.0/2.0)*det(D)

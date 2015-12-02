@@ -8,7 +8,7 @@ class Twist(StaticHyperelasticity):
 
     def mesh(self):
         n = 8
-        return UnitCube(n, n, n)
+        return UnitCubeMesh(n, n, n)
 
     def dirichlet_values(self):
         clamp = Expression(("0.0", "0.0", "0.0"))

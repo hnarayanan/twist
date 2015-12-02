@@ -6,11 +6,11 @@ __license__  = "GNU GPL Version 3 or any later version"
 
 from math import ceil
 from numpy import linspace
-from dolfin import PeriodicBC, warning
+from dolfin import PeriodicBoundaryComputation, warning
 
 def is_periodic(bcs):
     "Check if boundary conditions are periodic"
-    return all(isinstance(bc, PeriodicBC) for bc in bcs)
+    return all(isinstance(bc, PeriodicBoundaryComputation) for bc in bcs)
 
 def missing_function(function):
     "Write an informative error message when function has not been overloaded"

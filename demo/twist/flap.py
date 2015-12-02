@@ -8,7 +8,7 @@ class Obstruction(Hyperelasticity):
 
     def mesh(self):
         n = 4
-        return Rectangle(0, 0, 0.2, 0.5, n, 5*n/2)
+        return RectangleMesh(0, 0, 0.2, 0.5, n, 5*n/2)
 
     def end_time(self):
         return 1.0

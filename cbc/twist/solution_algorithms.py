@@ -539,7 +539,8 @@ class CG1MomentumBalanceSolver(CBCSolver):
         self.displacement_file = None
         self.velocity_file = None
         self.displacement_velocity_series = None
-        self.u_plot = u_plot
+        #self.u_plot = u_plot
+	self.uplot = plot(u,mode="displacement",title="Displacement")
 
         # Store parameters
         self.parameters = parameters
@@ -586,8 +587,9 @@ class CG1MomentumBalanceSolver(CBCSolver):
         if self.parameters["plot_solution"]:
             # Copy to a fixed function to trick Viper into not opening
             # up multiple windows
-            self.u_plot.assign(u)
-            plot(self.u_plot, title="Displacement", mode="displacement", rescale=True)
+            "THIS ASSIGN DOES NOT WORK FOR SOME REASON!" #self.u_plot.assign(u)
+            #plot(u, title="Displacement", mode="displacement", rescale=True)
+	    self.uplot.plot(u)
 
         # Store solution (for plotting)
         if self.parameters["save_solution"]:

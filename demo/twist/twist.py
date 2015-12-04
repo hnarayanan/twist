@@ -45,12 +45,33 @@ class Twist(StaticHyperelasticity):
 
         return material
 
+    def name_method(self, method):
+        self.method = method
+
     def __str__(self):
-        return "A hyperelastic cube twisted by 60 degrees"
+        return "A hyperelastic cube twisted by 60 degrees solved by " + self.method
+
+
 
 # Setup the problem
-twist = Twist()
+twist_dis = Twist()
+twist_dis.name_method("DISPLACEMENT BASED FORMULATION")
+twist_dis.parameters['solver_parameters']['plot_solution'] = False
+twist_up = Twist()
+twist_up.name_method("MIXED (U,P) FORMULATION")
+twist_up.parameters['solver_parameters']['problem_formulation'] = 'mixed_up'
+twist_up.parameters['solver_parameters']['plot_solution'] = False
 
 # Solve the problem
-print twist
-u = twist.solve()
+print twist_dis
+u_dis = twist_dis.solve()
+
+print twist_up
+u_up, p_up = twist_up.solve()
+
+V = VectorFunctionSpace(twist_dis.mesh(),'CG',2)
+
+u_e = project(u_up - u_dis,V)
+e = assemble(inner(u_e,u_e)*dx)
+print "L2 norm of the difference between displacement and (u,p) formulation \n ||u_dis - u_up||^2 = %s"  % e
+#plot(u_e, mode = "displacement", interactive=True)

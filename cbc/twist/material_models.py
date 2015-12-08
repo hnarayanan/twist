@@ -51,14 +51,16 @@ class neoHookean(MaterialModel):
     material"""
 
     def model_info(self):
-        self.num_parameters = 1
+        self.num_parameters = 2
         self.kinematic_measure = "CauchyGreenInvariants"
 
     def strain_energy(self, parameters):
         I1 = self.I1
+        I3 = self.I3
+        J = sqrt(I3)
 
-        [half_nkT] = parameters
-        return half_nkT*(I1 - 3)
+        [half_nkT, bulk] = parameters
+        return half_nkT*(I1 - 3.0 - 2*ln(J)) + bulk*(ln(J))**2
 
 class Isihara(MaterialModel):
     """Defines the strain energy function for an Isihara material"""

@@ -36,15 +36,16 @@ class MooneyRivlin(MaterialModel):
     Mooney-Rivlin material"""
 
     def model_info(self):
-        self.num_parameters = 2
+        self.num_parameters = 3
         self.kinematic_measure = "CauchyGreenInvariants"
 
     def strain_energy(self, parameters):
-        I1 = self.I1
-        I2 = self.I2
+        J = sqrt(self.I3)
+        I1bar = J**(-2.0/3.0)*self.I1
+        I2bar = J**(-4.0/3.0)*self.I2
 
-        [C1, C2] = parameters
-        return C1*(I1 - 3) + C2*(I2 - 3)
+        [C1, C2, bulk] = parameters
+        return C1*(I1bar - 3) + C2*(I2bar - 3) + bulk*(J - 1.0)**2
 
 class neoHookean(MaterialModel):
     """Defines the strain energy function for a neo-Hookean
@@ -55,40 +56,43 @@ class neoHookean(MaterialModel):
         self.kinematic_measure = "CauchyGreenInvariants"
 
     def strain_energy(self, parameters):
-        I1 = self.I1
-        I3 = self.I3
-        J = sqrt(I3)
+        J = sqrt(self.I3)
+        I1bar = J**(-2.0/3.0)*self.I1
 
         [half_nkT, bulk] = parameters
-        return half_nkT*(I1 - 3.0 - 2*ln(J)) + bulk*(ln(J))**2
+        return half_nkT*(I1bar - 3.0) + bulk*(J - 1.0)**2
 
 class Isihara(MaterialModel):
     """Defines the strain energy function for an Isihara material"""
-
-    def model_info(self):
-        self.num_parameters = 3
-        self.kinematic_measure = "CauchyGreenInvariants"
-
-    def strain_energy(self, parameters):
-        I1 = self.I1
-        I2 = self.I2
-
-        [C10, C01, C20] = parameters
-        return C10*(I1 - 3) + C01*(I2 - 3) + C20*(I2 - 3)**2
-
-class Biderman(MaterialModel):
-    """Defines the strain energy function for a Biderman material"""
 
     def model_info(self):
         self.num_parameters = 4
         self.kinematic_measure = "CauchyGreenInvariants"
 
     def strain_energy(self, parameters):
-        I1 = self.I1
-        I2 = self.I2
+        J = sqrt(self.I3)
+        I1bar = J**(-2.0/3.0)*self.I1
+        I2bar = J**(-4.0/3.0)*self.I2
 
-        [C10, C01, C20, C30] = parameters
-        return C10*(I1 - 3) + C01*(I2 - 3) + C20*(I2 - 3)**2 + C30(I1 - 3)**3
+        [C10, C01, C20, bulk] = parameters
+        return C10*(I1bar - 3) + C01*(I2bar - 3) \
+                 + C20*(I2bar - 3)**2 + bulk*(J - 1.0)**2
+
+class Biderman(MaterialModel):
+    """Defines the strain energy function for a Biderman material"""
+
+    def model_info(self):
+        self.num_parameters = 5
+        self.kinematic_measure = "CauchyGreenInvariants"
+
+    def strain_energy(self, parameters):
+        J = sqrt(self.I3)
+        I1bar = J**(-2.0/3.0)*self.I1
+        I2bar = J**(-4.0/3.0)*self.I2
+
+        [C10, C01, C20, C30, bulk] = parameters
+        return C10*(I1bar - 3) + C01*(I2bar - 3) \
+                + C20*(I2bar - 3)**2 + C30(I1bar - 3)**3 + bulk*(J - 1.0)**2
 
 class GentThomas(MaterialModel):
     """Defines the strain energy function for a Gent-Thomas

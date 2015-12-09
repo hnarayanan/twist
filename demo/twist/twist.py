@@ -44,16 +44,19 @@ class Twist(StaticHyperelasticity):
         mu       = 1e2
         lmbda    = 1e5
         C10 = 0.171; C01 = 4.89e-3; C20 = -2.4e-4; C30 = 5.e-4
+        M = Constant((1.0,0.0,0.0))
 
         # It is also easy to switch material models. Uncomment one of
         # the following lines to see a particular material's response.
         materials = []
-        materials.append(MooneyRivlin([mu/2, mu/2, lmbda]))
-        materials.append(StVenantKirchhoff([mu, lmbda]))
-        materials.append(neoHookean([mu, lmbda]))
-        materials.append(Isihara([C10, C01, C20, lmbda]))
-        materials.append(Biderman([C10, C01, C20, C30, lmbda]))
-        materials.append(Ogden([1.3, 5.0, -2.0, 6.3e5, 0.012e5, -0.1e5]))
+        materials.append(MooneyRivlin({'C1':mu/2, 'C2':mu/2, 'bulk':lmbda}))
+        materials.append(StVenantKirchhoff({'mu':mu, 'bulk':lmbda}))
+        materials.append(neoHookean({'half_nkT':mu, 'bulk':lmbda}))
+        materials.append(Isihara({'C10':C10,'C01':C01,'C20':C20,'bulk':lmbda}))
+        materials.append(Biderman({'C10':C10,'C01':C01,'C20':C20,'C30':C30,'bulk':lmbda}))
+        materials.append(AnisoTest({'mu1':mu,'mu2':2*mu,'M':M,'bulk':lmbda}))
+        materials.append(Ogden({'alpha1':1.3,'alpha2':5.0,'alpha3':-2.0,\
+                                'mu1':6.3e5,'mu2':0.012e5,'mu3':-0.1e5}))
         
         index = int(argv[2])
         print str(materials[index])

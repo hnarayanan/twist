@@ -127,3 +127,9 @@ def InversePiolaTransform(A, u):
     B = (1/J)*A*F.T
     return B
 
+
+# Computes a stretch in the direction M
+def DirectionalStretch(u, M):
+    C = RightCauchyGreen(u)
+    I4 = inner(M,C*M)
+    return variable(I4)

@@ -87,8 +87,8 @@ class StaticMomentumBalanceSolver_U(CBCSolver):
         # Setup problem
         problem = NonlinearVariationalProblem(L, u, bcu, a)
         solver = NonlinearVariationalSolver(problem)
-        solver.parameters["newton_solver"]["absolute_tolerance"] = 1e-12
-        solver.parameters["newton_solver"]["relative_tolerance"] = 1e-12
+        solver.parameters["newton_solver"]["absolute_tolerance"] = 1e-10
+        solver.parameters["newton_solver"]["relative_tolerance"] = 1e-10
         solver.parameters["newton_solver"]["maximum_iterations"] = 100
 
         # Store parameters
@@ -169,8 +169,7 @@ class StaticMomentumBalanceSolver_UP(CBCSolver):
         P  = problem.first_pk_stress(u)
         J = Jacobian(u)
         material_parameters = problem.material_model().parameters
-        last = len(material_parameters) - 1
-        lb = material_parameters[last]
+        lb = material_parameters['bulk']
 
         # The variational form corresponding to hyperelasticity
         L1 = inner(P, Grad(v))*dx - inner(B, v)*dx

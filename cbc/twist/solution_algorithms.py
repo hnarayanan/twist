@@ -175,11 +175,12 @@ class StaticMomentumBalanceSolver_UP(CBCSolver):
         # model
         P  = problem.first_pk_stress(u)
         J = Jacobian(u)
+        F = DeformationGradient(u)
         material_parameters = problem.material_model().parameters
         lb = material_parameters['bulk']
 
         # The variational form corresponding to hyperelasticity
-        L1 = inner(P, Grad(v))*dx - inner(B, v)*dx
+        L1 = inner(P, Grad(v))*dx - p*J*inner(inv(F.T),Grad(v))*dx - inner(B, v)*dx
         L2 = (1.0/lb*p + J - 1.0)*q*dx
         L = L1 + L2
 

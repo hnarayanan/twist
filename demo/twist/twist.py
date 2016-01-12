@@ -42,9 +42,10 @@ class Twist(StaticHyperelasticity):
         # Material parameters can either be numbers or spatially
         # varying fields. For example,
         mu       = 1e2
-        lmbda    = 1e5
+        lmbda    = 1e7
         C10 = 0.171; C01 = 4.89e-3; C20 = -2.4e-4; C30 = 5.e-4
         M = Constant((1.0,0.0,0.0))
+        k1 = 1e2; k2 = 1e1
 
         # It is also easy to switch material models. Uncomment one of
         # the following lines to see a particular material's response.
@@ -55,6 +56,7 @@ class Twist(StaticHyperelasticity):
         materials.append(Isihara({'C10':C10,'C01':C01,'C20':C20,'bulk':lmbda}))
         materials.append(Biderman({'C10':C10,'C01':C01,'C20':C20,'C30':C30,'bulk':lmbda}))
         materials.append(AnisoTest({'mu1':mu,'mu2':2*mu,'M':M,'bulk':lmbda}))
+        materials.append(GasserHolzapfelOgden({'mu':mu,'k1':k1,'k2':k2,'M':M,'bulk':lmbda}))
         materials.append(Ogden({'alpha1':1.3,'alpha2':5.0,'alpha3':-2.0,\
                                 'mu1':6.3e5,'mu2':0.012e5,'mu3':-0.1e5}))
         
@@ -71,6 +73,7 @@ class Twist(StaticHyperelasticity):
 
 
 # Setup the problem
+"""
 twist_dis = Twist()
 twist_dis.name_method("DISPLACEMENT BASED FORMULATION")
 twist_dis.parameters['solver_parameters']['plot_solution'] = False
@@ -81,9 +84,15 @@ twist_up = Twist()
 twist_up.name_method("MIXED (U,P) FORMULATION")
 twist_up.parameters['solver_parameters']['problem_formulation'] = 'mixed_up'
 twist_up.parameters['solver_parameters']['plot_solution'] = True
+"""
 
+twist_inc = Twist()
+twist_inc.name_method("INCOMPRESSIBLE FORMULATION")
+twist_inc.parameters['solver_parameters']['problem_formulation'] = 'incompressible'
+twist_inc.parameters['solver_parameters']['plot_solution'] = True
 
 # Solve the problem
+"""
 print twist_dis
 u_dis = twist_dis.solve()
 
@@ -91,10 +100,17 @@ u_dis = twist_dis.solve()
 print twist_up
 u_up, p_up = twist_up.solve()
 
+
 V = VectorFunctionSpace(twist_dis.mesh(),'CG',2)
 
 u_e = project(u_up - u_dis,V)
 e = assemble(inner(u_e,u_e)*dx)
 print "L2 norm of the difference between displacement and (u,p) formulation \n ||u_dis - u_up||^2 = %s"  % e
 #plot(u_e, mode = "displacement", interactive=True)
+"""
 
+print twist_inc
+u_inc, p_inc = twist_inc.solve()
+
+J = Jacobian(u_inc)
+plot(J, interactive=True)

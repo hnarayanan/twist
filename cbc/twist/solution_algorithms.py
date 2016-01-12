@@ -114,8 +114,6 @@ class StaticMomentumBalanceSolver_U(CBCSolver):
         self.mesh = mesh
         "self.equation = solver"
         self.u = u
-        u_inc = Function(vector)
-        self.u_inc = u_inc
 
     def solve(self):
         """Solve the mechanics problem and return the computed
@@ -126,35 +124,41 @@ class StaticMomentumBalanceSolver_U(CBCSolver):
             "self.equation.solve()"
             a_tol = 1e-8
             r_tol = 1e-7
-            u_inc = self.u_inc
             bcu_du = homogenize(self.bcu)
             nIter = 0
             eps = 1
             Lnorm = 1e2
 
+            vector = VectorFunctionSpace(self.mesh, "CG", self.parameters['element_degree'])
+            u_temp = Function(vector)
+            u_inc = Function(vector)
+    
             while Lnorm > a_tol and nIter < 100:
                 nIter += 1
+                u_temp.assign(self.u)
                 A, b = assemble_system(self.a, -self.L, bcu_du)
                 solve(A, u_inc.vector(), b)
                 eps = linalg.norm(u_inc.vector().array(), ord=2)
+                omega = 1.0
+                self.u.vector()[:] += omega*u_inc.vector()
+
                 matice = assemble(self.L)
                 for bc in bcu_du:
                     bc.apply(matice)
                 Lnorm2 = norm(matice, 'l2')
-                if Lnorm2 < Lnorm:
-                    omega = 1.0
-                    self.u.vector()[:] += omega*u_inc.vector()
-                    print '     {0:2d}       {1:3.2E}     {2:5e}'.format(nIter,eps, Lnorm2)
-                    Lnorm = Lnorm2
-                else:
-                    omega = 0.5
+
+                print '     {0:2d}       {1:3.2E}     {2:5e}'.format(nIter,eps, Lnorm2)
+                while Lnorm2 > Lnorm:
+                    omega = omega*0.5
+                    self.u.vector()[:] = u_temp.vector() + omega*u_inc.vector()
                     matice = assemble(self.L)
                     for bc in bcu_du:
                         bc.apply(matice)
                     Lnorm2 = norm(matice, 'l2')
-                    self.u.vector()[:] += omega*u_inc.vector()
+
                     print '     {0:2d}       {1:3.2E}     {2:5e}'.format(nIter,eps, Lnorm2)
-                    Lnorm = Lnorm2
+                Lnorm = Lnorm2
+
         else:
             problem = NonlinearVariationalProblem(self.L, self.u, self.bcu, self.a)
             solver = NonlinearVariationalSolver(problem)

@@ -10,7 +10,7 @@ from cbc.common import *
 from cbc.common.utils import *
 from cbc.twist.kinematics import Grad, DeformationGradient, Jacobian
 from sys import exit
-from numpy import array, loadtxt
+from numpy import array, loadtxt, linalg
 
 def default_parameters():
     "Return default solver parameters."
@@ -84,8 +84,14 @@ class StaticMomentumBalanceSolver_U(CBCSolver):
             L = L - inner(neumann_conditions[i], v)*dsb(i)
         #plot(boundary,interactive=True)
 
-        a = derivative(L, u, du)
+        self.a = derivative(L, u, du)
+        self.L = L
+        self.du = du
+        self.bcu = bcu
+        
+        
 
+        """
         # Setup problem
         problem = NonlinearVariationalProblem(L, u, bcu, a)
         solver = NonlinearVariationalSolver(problem)
@@ -94,9 +100,11 @@ class StaticMomentumBalanceSolver_U(CBCSolver):
         prm["newton_solver"]["absolute_tolerance"] = 1e-8
         prm["newton_solver"]["relative_tolerance"] = 1e-7
         prm["newton_solver"]["maximum_iterations"] = 100
-        prm['newton_solver']['relaxation_parameter'] = 1.0
+        prm['newton_solver']['relaxation_parameter'] = 0.5
 
-        set_log_level(PROGRESS)
+        """
+
+        #set_log_level(PROGRESS)
 
         # Store parameters
         self.parameters = parameters
@@ -104,15 +112,60 @@ class StaticMomentumBalanceSolver_U(CBCSolver):
         # Store variables needed for time-stepping
         # FIXME: Figure out why I am needed
         self.mesh = mesh
-        self.equation = solver
+        "self.equation = solver"
         self.u = u
+        u_inc = Function(vector)
+        self.u_inc = u_inc
 
     def solve(self):
         """Solve the mechanics problem and return the computed
         displacement field"""
 
         # Solve problem
-        self.equation.solve()
+        if True:
+            "self.equation.solve()"
+            a_tol = 1e-8
+            r_tol = 1e-7
+            u_inc = self.u_inc
+            bcu_du = homogenize(self.bcu)
+            nIter = 0
+            eps = 1
+            Lnorm = 1e2
+
+            while Lnorm > a_tol and nIter < 100:
+                nIter += 1
+                A, b = assemble_system(self.a, -self.L, bcu_du)
+                solve(A, u_inc.vector(), b)
+                eps = linalg.norm(u_inc.vector().array(), ord=2)
+                matice = assemble(self.L)
+                for bc in bcu_du:
+                    bc.apply(matice)
+                Lnorm2 = norm(matice, 'l2')
+                if Lnorm2 < Lnorm:
+                    omega = 1.0
+                    self.u.vector()[:] += omega*u_inc.vector()
+                    print '     {0:2d}       {1:3.2E}     {2:5e}'.format(nIter,eps, Lnorm2)
+                    Lnorm = Lnorm2
+                else:
+                    omega = 0.5
+                    matice = assemble(self.L)
+                    for bc in bcu_du:
+                        bc.apply(matice)
+                    Lnorm2 = norm(matice, 'l2')
+                    self.u.vector()[:] += omega*u_inc.vector()
+                    print '     {0:2d}       {1:3.2E}     {2:5e}'.format(nIter,eps, Lnorm2)
+                    Lnorm = Lnorm2
+        else:
+            problem = NonlinearVariationalProblem(self.L, self.u, self.bcu, self.a)
+            solver = NonlinearVariationalSolver(problem)
+
+            prm = solver.parameters
+            prm["newton_solver"]["absolute_tolerance"] = 1e-8
+            prm["newton_solver"]["relative_tolerance"] = 1e-7
+            prm["newton_solver"]["maximum_iterations"] = 100
+            prm['newton_solver']['relaxation_parameter'] = 0.5
+
+            solver.solve()
 
         # Plot solution
         if self.parameters["plot_solution"]:

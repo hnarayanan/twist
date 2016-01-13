@@ -6,6 +6,7 @@ __license__  = "GNU GPL Version 3 or any later version"
 # Last changed: 2012-05-01
 
 from dolfin import *
+from nonlinear_solver import *
 from cbc.common import *
 from cbc.common.utils import *
 from cbc.twist.kinematics import Grad, DeformationGradient, Jacobian
@@ -54,13 +55,12 @@ class StaticMomentumBalanceSolver_U(CBCSolver):
         if B == []:
             B = Constant((0,)*vector.mesh().geometry().dim())
 
+        self.theta = Constant(1.0)
         # First Piola-Kirchhoff stress tensor based on the material
         # model
         P  = problem.first_pk_stress(u)
-
         # The variational form corresponding to hyperelasticity
-        L = inner(P, Grad(v))*dx - inner(B, v)*dx
-
+        L = inner(P, Grad(v))*dx - self.theta*inner(B, v)*dx
         # Add contributions to the form from the Neumann boundary
         # conditions
 
@@ -76,12 +76,13 @@ class StaticMomentumBalanceSolver_U(CBCSolver):
         boundary = MeshFunction("size_t", mesh, mesh.topology().dim() - 1)
         boundary.set_all(len(neumann_boundaries) + 1)
 
+
         dsb = ds[boundary]
         for (i, neumann_boundary) in enumerate(neumann_boundaries):
             compiled_boundary = CompiledSubDomain(neumann_boundary)
  
             compiled_boundary.mark(boundary, i)
-            L = L - inner(neumann_conditions[i], v)*dsb(i)
+            L = L - self.theta*inner(neumann_conditions[i], v)*dsb(i)
         #plot(boundary,interactive=True)
 
         self.a = derivative(L, u, du)
@@ -89,22 +90,6 @@ class StaticMomentumBalanceSolver_U(CBCSolver):
         self.du = du
         self.bcu = bcu
         
-        
-
-        """
-        # Setup problem
-        problem = NonlinearVariationalProblem(L, u, bcu, a)
-        solver = NonlinearVariationalSolver(problem)
-
-        prm = solver.parameters
-        prm["newton_solver"]["absolute_tolerance"] = 1e-8
-        prm["newton_solver"]["relative_tolerance"] = 1e-7
-        prm["newton_solver"]["maximum_iterations"] = 100
-        prm['newton_solver']['relaxation_parameter'] = 0.5
-
-        """
-
-        #set_log_level(PROGRESS)
 
         # Store parameters
         self.parameters = parameters
@@ -119,57 +104,12 @@ class StaticMomentumBalanceSolver_U(CBCSolver):
         """Solve the mechanics problem and return the computed
         displacement field"""
 
-        # Solve problem
-        if True:
-            "self.equation.solve()"
-            a_tol = 1e-8
-            r_tol = 1e-7
-            bcu_du = homogenize(self.bcu)
-            nIter = 0
-            eps = 1
-            Lnorm = 1e2
+        # Solve problem 
+        solver = AugmentedNewtonSolver(self.L, self.u, self.du, self.bcu,\
+                                         load_increment = self.theta)
+        #solver.parameters["relaxation_parameter"]["adaptive"] = False
+        solver.solve()
 
-            vector = VectorFunctionSpace(self.mesh, "CG", self.parameters['element_degree'])
-            u_temp = Function(vector)
-            u_inc = Function(vector)
-    
-            while Lnorm > a_tol and nIter < 100:
-                nIter += 1
-                u_temp.assign(self.u)
-                A, b = assemble_system(self.a, -self.L, bcu_du)
-                solve(A, u_inc.vector(), b)
-                eps = linalg.norm(u_inc.vector().array(), ord=2)
-                omega = 1.0
-                self.u.vector()[:] += omega*u_inc.vector()
-
-                matice = assemble(self.L)
-                for bc in bcu_du:
-                    bc.apply(matice)
-                Lnorm2 = norm(matice, 'l2')
-
-                print '     {0:2d}       {1:3.2E}     {2:5e}'.format(nIter,eps, Lnorm2)
-                while Lnorm2 > Lnorm:
-                    omega = omega*0.5
-                    self.u.vector()[:] = u_temp.vector() + omega*u_inc.vector()
-                    matice = assemble(self.L)
-                    for bc in bcu_du:
-                        bc.apply(matice)
-                    Lnorm2 = norm(matice, 'l2')
-
-                    print '     {0:2d}       {1:3.2E}     {2:5e}'.format(nIter,eps, Lnorm2)
-                Lnorm = Lnorm2
-
-        else:
-            problem = NonlinearVariationalProblem(self.L, self.u, self.bcu, self.a)
-            solver = NonlinearVariationalSolver(problem)
-
-            prm = solver.parameters
-            prm["newton_solver"]["absolute_tolerance"] = 1e-8
-            prm["newton_solver"]["relative_tolerance"] = 1e-7
-            prm["newton_solver"]["maximum_iterations"] = 100
-            prm['newton_solver']['relaxation_parameter'] = 0.5
-
-            solver.solve()
 
         # Plot solution
         if self.parameters["plot_solution"]:
@@ -178,7 +118,7 @@ class StaticMomentumBalanceSolver_U(CBCSolver):
 
         # Store solution (for plotting)
         if self.parameters["save_solution"]:
-            displacement_file = File("displacement.pvd")
+            displacement_file = File("displacement.xdmf")
             displacement_file << self.u
 
         # Store solution data

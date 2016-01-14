@@ -20,13 +20,12 @@ def default_solver_parameters():
 class AugmentedNewtonSolver():
     """ Newton solver with implemented damping and incremental loading """
 
-    def __init__(self, F, u, du, bc, parameters = default_solver_parameters(), load_increment = None):
+    def __init__(self, F, u, bc, parameters = default_solver_parameters(), load_increment = None):
         self.parameters = parameters
         self.F = F
         self.u = u
-        self.du = du
         self.bc = bc
-        self.a = derivative(F, u, du)
+        self.a = derivative(F, u)
         self.load_increment = load_increment
 
     def solve(self):

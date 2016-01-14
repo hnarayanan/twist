@@ -105,7 +105,7 @@ class StaticMomentumBalanceSolver_U(CBCSolver):
         displacement field"""
 
         # Solve problem 
-        solver = AugmentedNewtonSolver(self.L, self.u, self.du, self.bcu,\
+        solver = AugmentedNewtonSolver(self.L, self.u, self.bcu,\
                                          load_increment = self.theta)
         #solver.parameters["relaxation_parameter"]["adaptive"] = False
         solver.solve()
@@ -327,15 +327,10 @@ class StaticMomentumBalanceSolver_Incompressible(CBCSolver):
             compiled_boundary.mark(boundary, i)
             L = L - inner(neumann_conditions[i], v)*dsb(i)
 
-        a = derivative(L, w)
-
-        # Setup problem
-        problem = NonlinearVariationalProblem(L, w, bcu, a)
-        solver = NonlinearVariationalSolver(problem)
-        solver.parameters["newton_solver"]["absolute_tolerance"] = 1e-9
-        solver.parameters["newton_solver"]["relative_tolerance"] = 1e-9
-        solver.parameters["newton_solver"]["maximum_iterations"] = 100
-        solver.parameters['newton_solver']['linear_solver'] = 'mumps'
+        self.L = L
+        self.a = derivative(L, w)
+        self.w = w
+        self.bcu = bcu
 
         # Store parameters
         self.parameters = parameters
@@ -343,18 +338,19 @@ class StaticMomentumBalanceSolver_Incompressible(CBCSolver):
         # Store variables needed for time-stepping
         # FIXME: Figure out why I am needed
         self.mesh = mesh
-        self.equation = solver
-
-        (u,p) = w.split()
-        self.u = u
-        self.p = p
 
     def solve(self):
         """Solve the mechanics problem and return the computed
         displacement field"""
 
         # Solve problem
-        self.equation.solve()
+        solver = AugmentedNewtonSolver(self.L, self.w, self.bcu)
+        #solver.parameters["relaxation_parameter"]["adaptive"] = False
+        solver.solve()
+
+        (u,p) = self.w.split()
+        self.u = u
+        self.p = p
 
         # Plot solution
         if self.parameters["plot_solution"]:

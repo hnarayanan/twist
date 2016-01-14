@@ -21,6 +21,12 @@ def default_parameters():
     p.add("store_solution_data", False)
     p.add("element_degree",2)
     p.add("problem_formulation",'displacement')
+    rel = Parameters("relaxation_parameter")
+    rel.add("value", 1.0)
+    rel.add("adaptive", True)
+    p.add(rel)
+    p.add("loading_number_of_steps", 1)
+
     return p
 
 class StaticMomentumBalanceSolver_U(CBCSolver):
@@ -104,10 +110,18 @@ class StaticMomentumBalanceSolver_U(CBCSolver):
         """Solve the mechanics problem and return the computed
         displacement field"""
 
-        # Solve problem 
-        solver = AugmentedNewtonSolver(self.L, self.u, self.bcu,\
+        # Solve problem
+        if self.parameters["loading_number_of_steps"] == 1:
+            solver = AugmentedNewtonSolver(self.L, self.u, self.bcu)
+        else:
+            solver = AugmentedNewtonSolver(self.L, self.u, self.bcu,\
                                          load_increment = self.theta)
-        #solver.parameters["relaxation_parameter"]["adaptive"] = False
+            solver.parameters["loading_number_of_steps"] \
+                    = self.parameters["loading_number_of_steps"]
+        solver.parameters["relaxation_parameter"]["adaptive"] \
+                    = self.parameters["relaxation_parameter"]["adaptive"]
+        solver.parameters["relaxation_parameter"]["value"] \
+                    = self.parameters["relaxation_parameter"]["value"]
         solver.solve()
 
 
@@ -176,8 +190,9 @@ class StaticMomentumBalanceSolver_UP(CBCSolver):
         material_parameters = problem.material_model().parameters
         lb = material_parameters['bulk']
 
+        self.theta = Constant(1.0)
         # The variational form corresponding to hyperelasticity
-        L1 = inner(P, Grad(v))*dx - p*J*inner(inv(F.T),Grad(v))*dx - inner(B, v)*dx
+        L1 = inner(P, Grad(v))*dx - p*J*inner(inv(F.T),Grad(v))*dx - self.theta*inner(B, v)*dx
         L2 = (1.0/lb*p + J - 1.0)*q*dx
         L = L1 + L2
 
@@ -200,17 +215,12 @@ class StaticMomentumBalanceSolver_UP(CBCSolver):
         for (i, neumann_boundary) in enumerate(neumann_boundaries):
             compiled_boundary = CompiledSubDomain(neumann_boundary)
             compiled_boundary.mark(boundary, i)
-            L = L - inner(neumann_conditions[i], v)*dsb(i)
+            L = L - self.theta*inner(neumann_conditions[i], v)*dsb(i)
 
-        a = derivative(L, w)
-
-        # Setup problem
-        problem = NonlinearVariationalProblem(L, w, bcu, a)
-        solver = NonlinearVariationalSolver(problem)
-        solver.parameters["newton_solver"]["absolute_tolerance"] = 1e-9
-        solver.parameters["newton_solver"]["relative_tolerance"] = 1e-9
-        solver.parameters["newton_solver"]["maximum_iterations"] = 100
-        solver.parameters['newton_solver']['linear_solver'] = 'mumps'
+        self.L = L
+        self.a = derivative(L, w)
+        self.w = w
+        self.bcu = bcu
 
         # Store parameters
         self.parameters = parameters
@@ -218,18 +228,28 @@ class StaticMomentumBalanceSolver_UP(CBCSolver):
         # Store variables needed for time-stepping
         # FIXME: Figure out why I am needed
         self.mesh = mesh
-        self.equation = solver
-
-        (u,p) = w.split()
-        self.u = u
-        self.p = p
 
     def solve(self):
         """Solve the mechanics problem and return the computed
         displacement field"""
 
         # Solve problem
-        self.equation.solve()
+        if self.parameters["loading_number_of_steps"] == 1:
+            solver = AugmentedNewtonSolver(self.L, self.w, self.bcu)
+        else:
+            solver = AugmentedNewtonSolver(self.L, self.w, self.bcu,\
+                                         load_increment = self.theta)
+            solver.parameters["loading_number_of_steps"] \
+                    = self.parameters["loading_number_of_steps"]
+        solver.parameters["relaxation_parameter"]["adaptive"] \
+                    = self.parameters["relaxation_parameter"]["adaptive"]
+        solver.parameters["relaxation_parameter"]["value"] \
+                    = self.parameters["relaxation_parameter"]["value"]
+        solver.solve()
+
+        (u,p) = self.w.split()
+        self.u = u
+        self.p = p
 
         # Plot solution
         if self.parameters["plot_solution"]:
@@ -302,7 +322,8 @@ class StaticMomentumBalanceSolver_Incompressible(CBCSolver):
         material_parameters = problem.material_model().parameters
 
         # The variational form corresponding to hyperelasticity
-        L1 = inner(P, Grad(v))*dx - p*J*inner(inv(F.T),Grad(v))*dx - inner(B, v)*dx
+        self.theta = Constant(1.0)
+        L1 = inner(P, Grad(v))*dx - p*J*inner(inv(F.T),Grad(v))*dx - self.theta*inner(B, v)*dx
         L2 = (J - 1.0)*q*dx
         L = L1 + L2
 
@@ -325,7 +346,7 @@ class StaticMomentumBalanceSolver_Incompressible(CBCSolver):
         for (i, neumann_boundary) in enumerate(neumann_boundaries):
             compiled_boundary = CompiledSubDomain(neumann_boundary)
             compiled_boundary.mark(boundary, i)
-            L = L - inner(neumann_conditions[i], v)*dsb(i)
+            L = L - self.theta*inner(neumann_conditions[i], v)*dsb(i)
 
         self.L = L
         self.a = derivative(L, w)
@@ -344,8 +365,17 @@ class StaticMomentumBalanceSolver_Incompressible(CBCSolver):
         displacement field"""
 
         # Solve problem
-        solver = AugmentedNewtonSolver(self.L, self.w, self.bcu)
-        #solver.parameters["relaxation_parameter"]["adaptive"] = False
+        if self.parameters["loading_number_of_steps"] == 1:
+            solver = AugmentedNewtonSolver(self.L, self.w, self.bcu)
+        else:
+            solver = AugmentedNewtonSolver(self.L, self.w, self.bcu,\
+                                         load_increment = self.theta)
+            solver.parameters["loading_number_of_steps"] \
+                    = self.parameters["loading_number_of_steps"]
+        solver.parameters["relaxation_parameter"]["adaptive"] \
+                    = self.parameters["relaxation_parameter"]["adaptive"]
+        solver.parameters["relaxation_parameter"]["value"] \
+                    = self.parameters["relaxation_parameter"]["value"]
         solver.solve()
 
         (u,p) = self.w.split()

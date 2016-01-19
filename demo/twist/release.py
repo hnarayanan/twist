@@ -8,7 +8,7 @@ class Release(Hyperelasticity):
 
     def mesh(self):
         n = 8
-        return UnitCube(n, n, n)
+        return UnitCubeMesh(n, n, n)
 
     def end_time(self):
         return 10.0

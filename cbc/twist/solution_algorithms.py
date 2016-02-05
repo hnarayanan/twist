@@ -91,7 +91,18 @@ class StaticMomentumBalanceSolver_U(CBCSolver):
             L = L - self.theta*inner(neumann_conditions[i], v)*dsb(i)
         #plot(boundary,interactive=True)
 
-        self.a = derivative(L, u, du)
+        a = derivative(L, u, du)
+
+        solver = AugmentedNewtonSolver(L, u, a, bcu,\
+                                         load_increment = self.theta)
+        solver.parameters["loading_number_of_steps"] \
+                    = parameters["loading_number_of_steps"]
+        solver.parameters["relaxation_parameter"]["adaptive"] \
+                    = parameters["relaxation_parameter"]["adaptive"]
+        solver.parameters["relaxation_parameter"]["value"] \
+                    = parameters["relaxation_parameter"]["value"]
+
+
         self.L = L
         self.du = du
         self.bcu = bcu
@@ -103,7 +114,7 @@ class StaticMomentumBalanceSolver_U(CBCSolver):
         # Store variables needed for time-stepping
         # FIXME: Figure out why I am needed
         self.mesh = mesh
-        "self.equation = solver"
+        self.equation = solver
         self.u = u
 
     def solve(self):
@@ -111,18 +122,7 @@ class StaticMomentumBalanceSolver_U(CBCSolver):
         displacement field"""
 
         # Solve problem
-        if self.parameters["loading_number_of_steps"] == 1:
-            solver = AugmentedNewtonSolver(self.L, self.u, self.bcu)
-        else:
-            solver = AugmentedNewtonSolver(self.L, self.u, self.bcu,\
-                                         load_increment = self.theta)
-            solver.parameters["loading_number_of_steps"] \
-                    = self.parameters["loading_number_of_steps"]
-        solver.parameters["relaxation_parameter"]["adaptive"] \
-                    = self.parameters["relaxation_parameter"]["adaptive"]
-        solver.parameters["relaxation_parameter"]["value"] \
-                    = self.parameters["relaxation_parameter"]["value"]
-        solver.solve()
+        self.equation.solve()
 
 
         # Plot solution

@@ -1,17 +1,23 @@
+__author__ = "Marek Netusil"
+
+
 from dolfin import *
 from numpy import linalg
 
 
 def default_solver_parameters():
+    " Default parameters for the Newton solver if none are given "
+
     p = Parameters("solver_parameters")
-    rel = Parameters("relaxation_parameter")
-    rel.add("value", 1.0)
-    rel.add("adaptive", True)
-    p.add(rel)
-    p.add("loading_number_of_steps", 5)
     p.add("maximum_iterations", 50)
     p.add("absolute_tolerance", 1E-8)
     p.add("relative_tolerance", 1E-7)
+    p.add("loading_number_of_steps", 1) # if >1 => incremental loading used
+    # Relaxation parameter setup - subparameter of solver_parameters
+    rel = Parameters("relaxation_parameter")
+    rel.add("value", 1.0)       # starting value of the relaxation parameter
+    rel.add("adaptive", True)   # should the solver use the adaptive approach?
+    p.add(rel)
 
     return p
     
@@ -20,37 +26,48 @@ def default_solver_parameters():
 class AugmentedNewtonSolver():
     """ Newton solver with implemented damping and incremental loading """
 
-    def __init__(self, F, u, bc, parameters = default_solver_parameters(), load_increment = None):
+    def __init__(self, F, u, a, bc, parameters = default_solver_parameters(), load_increment = None):
+        """ Initialize the solver """
+
+        # Get parameters
         self.parameters = parameters
-        self.F = F
-        self.u = u
-        self.bc = bc
-        self.a = derivative(F, u)
-        self.load_increment = load_increment
+
+        # Get problem data: F(u) == 0
+        self.F = F          # equation
+        self.u = u          # unknown
+        self.bc = bc        # dirichlet boundary conditions
+        self.a = a          # jacobian of F
+        self.load_increment = load_increment    # incremental coefficient
+
 
     def solve(self):
-        F = self.F
-        a = self.a
-        u = self.u
-        bc = self.bc
+        """ Solve the nonlinear system F(u) == 0 """
+
         relaxation = self.parameters["relaxation_parameter"]
         n = self.parameters["loading_number_of_steps"]
-        
+         
 
-        if relaxation["adaptive"]:
-            if self.load_increment == None:
-                self.adaptive(F, u, bc, a)
+        # Choose the solver implementation - adaptive vs. fenics default
+
+        # Solver with adaptive relaxation parameter
+        # FIXME: Replace this homemade solver with an overloaded NonlinearVariationalSolver
+        if relaxation["adaptive"]:          
+            if not self.load_increment or n == 1:
+                # Solve the problem with full loading
+                self.adaptive()
             else:
-                self.load_increment.assign(0.0)
-                bcu_du = homogenize(bc)
-                dtheta = 1.0/n
-                
-                for i in range(n+1):
+                # Incremental loading implementation
+                dtheta = 1.0/n              # define the increment
+                # Solve the problem for the incremental coefficient ranging from 0.0 to 1.0
+                for i in range(n+1):            
+                    self.load_increment.assign(i*dtheta)
+                    # FIXME: choose some log level for this output
                     print 'theta = ', float(self.load_increment)
-                    self.adaptive(F, u, bcu_du, a)
-                    self.load_increment.assign((i+1)*dtheta)
+                    self.adaptive()
+
+        # Non-adaptive case - solve each load increment with the NonlinearVariationalSolver
         else:
-            problem = NonlinearVariationalProblem(F, u, bc, a)
+            problem = NonlinearVariationalProblem(self.F, self.u, self.bc, self.a)
             solver = NonlinearVariationalSolver(problem)
 
             prm = solver.parameters
@@ -59,56 +76,79 @@ class AugmentedNewtonSolver():
             prm["newton_solver"]["maximum_iterations"] = self.parameters["maximum_iterations"]
             prm["newton_solver"]["relaxation_parameter"] = relaxation["value"]
 
-            if self.load_increment == None:
+            if not self.load_increment or n == 1:
                 solver.solve()
             else:
-                self.load_increment.assign(0.0)
-
-                dtheta = 1.0/n
-                
-                for i in range(n+1):
+                # Incremental loading implementation
+                dtheta = 1.0/n              # define the increment
+                # Solve the problem for the incremental coefficient ranging from 0.0 to 1.0
+                for i in range(n+1):            
+                    self.load_increment.assign(i*dtheta)
+                    # FIXME: choose some log level for this output
                     print 'theta = ', float(self.load_increment)
                     solver.solve()
-                    self.load_increment.assign((i+1)*dtheta)
 
 
-    def adaptive(self, F, u, bcu_du, a):
+    def adaptive(self):
+        """ Simple homemade Newton solver """
 
+        # Get parameters
         relaxation = self.parameters["relaxation_parameter"]
         absolute_tol = self.parameters["absolute_tolerance"]
         max_iter = self.parameters["maximum_iterations"]
 
-        vector = u.function_space
-        u_temp = Function(u)
-        du = Function(u)
+        # Prepare the algebraic variables
+        vector = self.u.function_space()
+        u_temp = Function(vector)
+        dx = Vector()
+        A = Matrix()
+        b = Vector()
+        x = self.u.vector()
+
+        # Initialize the controlling variables
+        nIter = 0               # Number of performed iterations
+        b = assemble(self.F)    # Residual
+        for bc in self.bc:
+            bc.apply(b, x)
+        res_norm = b.norm('l2')
+
+        # Log output - similar to the dolfin one
+        print '  Newton iteration{0:2d}: r (abs) = {1:1.3e}'.format(nIter,res_norm)
 
 
-        nIter = 0
-        eps = 1
-        Lnorm = 1e2
-
-        while Lnorm > absolute_tol and nIter < max_iter:
+        # Newton iterations
+        while res_norm > absolute_tol and nIter < max_iter:
+            if not dx.empty():
+                dx.zero()
             nIter += 1
-            u_temp.assign(self.u)
-            A, b = assemble_system(a, -F, bcu_du)
-            solve(A, du.vector(), b)
-            eps = linalg.norm(du.vector().array(), ord=2)
+            u_temp.assign(self.u)   # Save the solution u_(k-1)
+            # Set up and solve the algebraic system
+            A = assemble(self.a)
+            for bc in self.bc:
+                bc.apply(b, x)
+                bc.apply(A)
+            solve(A, dx, b)
+
+            # Set the relaxation parameter to 1.0
             omega = 1.0
-            self.u.vector()[:] += omega*du.vector()
+            self.u.vector().axpy(-omega, dx)    # Compute u_k
 
-            L = assemble(self.F)
-            for bc in bcu_du:
-                bc.apply(L)
-                Lnorm2 = norm(L, 'l2')
-
-            while Lnorm2 > Lnorm:
+            # Compute the absolute residual R_k
+            b = assemble(self.F)
+            for bc in self.bc:
+                bc.apply(b, x)
+            res_norm2 = b.norm('l2')
+            
+            # If residual R_k > R_(k+1), decrease the relaxation parameter by half
+            while res_norm2 >= res_norm:
                 omega = omega*0.5
-                self.u.vector()[:] = u_temp.vector() + omega*du.vector()
-                L = assemble(self.F)
-                for bc in bcu_du:
-                    bc.apply(L)
-                    Lnorm2 = norm(L, 'l2')
-
-            Lnorm = Lnorm2
-            print '     {0:2d}       {1:3.2E}     {2:1.5E}      {3:1.2E}'.format(nIter,eps, Lnorm2,omega)
+                self.u.vector()[:] = u_temp.vector() - omega*dx
+                b = assemble(self.F)
+                for bc in self.bc:
+                    bc.apply(b, x)
+                res_norm2 = norm(b, 'l2')
+            
+            # Update the residual and print the log output
+            res_norm = res_norm2
+            print '  Newton iteration{0:2d}: r (abs) = {1:1.3e}    relaxation = {2:1.2e}'.format(nIter,res_norm,omega)
 

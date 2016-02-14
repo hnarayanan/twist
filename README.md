@@ -22,6 +22,10 @@ this problem.
 TODO: Manual setup and pointer to the thinkbot hosted service that
 further simplifies the usage
 
+TODO: Incorporate notes from the [older INSTALL
+file](https://github.com/hnarayanan/twist/blob/852d40ef9a0fa6339640dc6fc3c0924b2e742450/INSTALL)
+or create a Makefile.
+
 ## Authors and contributing
 
 TODO: Refer the fact that this is a streamlined fork of an earlier

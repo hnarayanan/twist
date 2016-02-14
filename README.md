@@ -35,4 +35,4 @@ requests.
 
 TODO: Periods owned by original authors and current
 maintainers. License continues to be the GPL v3 found in the file
-COPYING.
+LICENSE.

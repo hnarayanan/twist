@@ -1,4 +1,0 @@
-To run these demos from within the source tree without installation,
-update your PYTHONPATH according to
-
-    export PYTHONPATH="../../..:$PYTHONPATH"

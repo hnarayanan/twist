@@ -1,13 +1,5 @@
 -*- mode: org; -*-
 
-* cbc.solve
-** Align the interfaces of the solvers
-*** Make the function names as close as possible
-*** Make the file layout identical
-*** Take useful functions from one to the other
-**** twist -> flow: Automatic conversion of floats to DOLFIN constants
-**** twist -> flow: Easy specification of boundary conditions and boundary
-*** Share mode code via common
 * cbc.twist
 ** Figure out why the Gent-Thomas material model does not converge
 ** Figure out how to specify material models in terms of principal stretches.
@@ -15,7 +7,5 @@
 ** Figure out how to specify material models in terms of modified strains
 *** This requires specification of higher order tensors and their products (contraction, for instance)
 ** Show how to set Dirichlet boundary conditions for some (not all) of the displacement components
-* cbc.swing
-** Move FSI example into its own class
 
 

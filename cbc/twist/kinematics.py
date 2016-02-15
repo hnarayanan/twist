@@ -128,8 +128,14 @@ def InversePiolaTransform(A, u):
     return B
 
 
-# Computes a stretch in the direction M
-def DirectionalStretch(u, M):
+# Computes M*C^nM
+# for n = 1 equals to the stretch in the direction M
+def DirectionalStretch(u, M, degree = 1):
     C = RightCauchyGreen(u)
-    I4 = inner(M,C*M)
-    return variable(I4)
+    Cpow = SecondOrderIdentity(u)
+    if degree >= 1:
+        for i in range(degree):
+            Cpow = C*Cpow
+        
+    directionalstretch = inner(M,Cpow*M)
+    return variable(directionalstretch)

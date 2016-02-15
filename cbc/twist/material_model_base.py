@@ -108,6 +108,7 @@ class MaterialModel_Anisotropic(MaterialModel):
         MaterialModel._construct_local_kinematics(self, u)
         M = self.parameters['M']
         self.I4 = DirectionalStretch(u, M)
+        self.I5 = DirectionalStretch(u, M, 2)
 
     def SecondPiolaKirchhoffStress(self, u):
         self._construct_local_kinematics(u)
@@ -124,14 +125,17 @@ class MaterialModel_Anisotropic(MaterialModel):
             S = diff(psi, E)
         elif self.kinematic_measure == "AnisotropicInvariants":
             I = self.I; C = self.C
-            I1 = self.I1; I2 = self.I2; I3 = self.I3; I4 = self.I4
+            I1 = self.I1; I2 = self.I2; I3 = self.I3; I4 = self.I4; I5 = self.I5
             M = self.parameters['M']
-            MM = as_tensor(M[i]*M[j],(i,j))
+            MM = outer(M,M)
+            MCM = outer(M,C*M)
+            CMM = outer(C*M,M)
             gamma1 = diff(psi, I1) + I1*diff(psi, I2)
             gamma2 = -diff(psi, I2)
             gamma3 = I3*diff(psi, I3)
             gamma4 = diff(psi, I4)
-            S = 2*(gamma1*I + gamma2*C + gamma3*inv(C) + gamma4*MM)
+            gamma5 = diff(psi, I5)
+            S = 2*(gamma1*I + gamma2*C + gamma3*inv(C) + gamma4*MM + gamma5*(MCM + CMM))
         elif self.kinematic_measure == "IsochoricCauchyGreenInvariants":
             I = self.I; Cbar = self.Cbar
             I1bar = self.I1bar; I2bar = self.I2bar; J = self.J

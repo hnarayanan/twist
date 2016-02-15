@@ -4,8 +4,9 @@ __license__  = "GNU GPL Version 3 or any later version"
 
 from dolfin import *
 from cbc.common import CBCProblem
-from cbc.twist.solution_algorithms import StaticMomentumBalanceSolver_U, StaticMomentumBalanceSolver_UP, StaticMomentumBalanceSolver_Incompressible, MomentumBalanceSolver, CG1MomentumBalanceSolver
-from cbc.twist.solution_algorithms import default_parameters as solver_parameters
+from cbc.twist.solution_algorithms_static import StaticMomentumBalanceSolver_U, StaticMomentumBalanceSolver_UP, StaticMomentumBalanceSolver_Incompressible
+from cbc.twist.solution_algorithms_dynamic import  MomentumBalanceSolver, CG1MomentumBalanceSolver
+from cbc.twist.solution_algorithms_static import default_parameters as solver_parameters
 from cbc.twist.kinematics import GreenLagrangeStrain
 from sys import exit
 
